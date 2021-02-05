@@ -8,13 +8,23 @@ import serial
 import re
 import math
 
-ser = serial.Serial('COM7', 115200, timeout=1)
+ser = serial.Serial('/dev/ttyUSB0', 115200, timeout=1)
 
-ax_acc, ay_acc = (0.0, 0.0)
-ax_gyro, ay_gyro = (0.0, 0.0)
-ax_comp, ay_comp = (0.0, 0.0)
-az = 0.0
+ax, ay, az, mx, my, mz, gx, gy, gz = (0, 0, 0, 0, 0, 0, 0, 0, 0)
 
+time_start, time_now, ts = (0, 0, 0.008)
+
+
+class Angles:
+    roll = 0
+    pitch = 0
+    jaw = 0
+
+
+acc_angle = Angles()
+gyro_angle = Angles()
+comp_filter_angles = Angles()
+yaw = 0
 
 def resize(width, height):
     if height == 0:
@@ -108,9 +118,18 @@ def draw_imu_legend(x_offset, roll, pitch, yaw, data_name):
 
 
 def draw():
-    global rquad
+    global rquad, yaw
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
 
+    acc_angle.pitch = -1 * \
+        (180/math.pi * math.atan2(ax, math.sqrt(ay**2 + az**2)))
+    acc_angle.roll = 180/math.pi * math.atan2(ay, math.sqrt(ax**2 + az**2))
+    gyro_angle.pitch += gy*ts
+    gyro_angle.roll += gx*ts
+    yaw += gz*ts
+    # complementary filter values
+    comp_filter_angles.pitch = gyro_angle.pitch*0.98 + acc_angle.pitch*0.02
+    comp_filter_angles.roll = gyro_angle.roll*0.98 + acc_angle.roll*0.02
     glLoadIdentity()
     glTranslatef(0, 0.0, -15.0)
 
@@ -118,57 +137,63 @@ def draw():
     gyro_draw_offset = 0
     comp_draw_offset = 6
 
-    draw_imu_legend(acc_draw_offset - 0.5, ax_acc, ay_acc, az, 'Acc data')
-    draw_imu_legend(gyro_draw_offset - 1, ax_gyro, ay_gyro, az, 'Gyro data')
-    draw_imu_legend(comp_draw_offset - 2, ax_comp, ay_comp, az, 'Comp filter')
-
+    draw_imu_legend(acc_draw_offset - 0.5, acc_angle.roll, acc_angle.pitch, yaw, 'Acc data')
+    draw_imu_legend(gyro_draw_offset - 1, gyro_angle.roll, gyro_angle.pitch, yaw, 'Gyro data')
+    draw_imu_legend(comp_draw_offset - 2, comp_filter_angles.roll, comp_filter_angles.pitch, yaw, 'Mag data')
 
     glTranslatef(acc_draw_offset, 0.0, 0.0)
 
-    draw_and_rotate(ax_acc, ay_acc, az)
+    draw_and_rotate(acc_angle.roll, acc_angle.pitch, yaw)
 
     glTranslatef(-acc_draw_offset, 0.0, 0.0)
 
-    draw_and_rotate(ax_gyro, ay_gyro, az)
+    draw_and_rotate(gyro_angle.roll, gyro_angle.pitch, yaw)
 
     glTranslatef(comp_draw_offset, 0.0, 0.0)
 
-    draw_and_rotate(ax_comp, ay_comp, az)
+    draw_and_rotate(comp_filter_angles.roll, comp_filter_angles.pitch, yaw)
 
 
 def read_data():
-    global ax_acc, ay_acc, ax_gyro, ay_gyro, ax_comp, ay_comp, az
+    global ax, ay, az, mx, my, mz, gx, gy, gz
 
     line = ser.readline()
     line = str(line)
     coords = re.findall(r'(-?\d+.\d+)', line)
-    temp_ax_acc = ax_acc
-    temp_ay_acc = ay_acc
-    temp_ax_gyro = ax_gyro
-    temp_ay_gyro = ay_gyro
-    temp_ax_comp = ax_comp
-    temp_ay_comp = ay_comp
+    temp_ax = ax
+    temp_ay = ay
     temp_az = az
-    if len(coords) == 7:
+    temp_gx = gx
+    temp_gy = gy
+    temp_gz = gz
+    temp_mx = mx
+    temp_my = my
+    temp_mz = mz
+    if len(coords) == 9:
         # Do exception handling in case the serial characters are nonsense
         try:
             # This is running on the pi mpu9250_master_example.py which make the calculations mentioned above before sending data
-            ax_acc = float(coords[0])
-            ay_acc = float(coords[1])
-            ax_gyro = float(coords[2])
-            ay_gyro = float(coords[3])
-            ax_comp = float(coords[4])
-            ay_comp = float(coords[5])
-            az = float(coords[6])
+            ax = float(coords[0])
+            ay = float(coords[1])
+            az = float(coords[2])
+            gx = float(coords[3])
+            gy = float(coords[4])
+            gz = float(coords[5])
+            mx = float(coords[6])
+            my = float(coords[7])
+            mz = float(coords[8])
+
         # If the parsed ints are non sense, keep the previous values
         except:
-            ax_acc = temp_ax_acc
-            ay_acc = temp_ay_acc
-            ax_gyro = temp_ax_gyro
-            ay_gyro = temp_ay_gyro
-            ax_comp = temp_ax_comp
-            ay_comp = temp_ay_comp
+            ax = temp_ax
+            ay = temp_ay
             az = temp_az
+            gx = temp_gx
+            gy = temp_gy
+            gz = temp_gz
+            mx = temp_mx
+            my = temp_my
+            mz = temp_mz
 
 
 def main():

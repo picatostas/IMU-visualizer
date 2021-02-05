@@ -27,30 +27,11 @@ mpu = MPU9250(
 mpu.configure()  # Apply the settings to the registers.
 
 # Assuming gyro in home position
-yaw = 0
-pitch_gyro = 0
-roll_gyro = 0
-ts = 0.008
-
 while True:
     start = time.time()
 
-    Ax, Ay, Az = tuple(mpu.readAccelerometerMaster())
-    Gx, Gy, Gz = tuple(mpu.readGyroscopeMaster())
-    Mx, My, Mz = tuple(mpu.readMagnetometerMaster())
-    pitch_acc = -1 * (180/math.pi * math.atan2(Ax, math.sqrt(Ay**2 + Az**2)))
-    roll_acc = 180/math.pi * math.atan2(Ay, math.sqrt(Ax**2 + Az**2))
-    # pitch_acc = -1 * (180/math.pi * math.atan2(Ax, Az))
-    # roll_acc = 180/math.pi * math.atan2(Ay, Az)
-    elapsed = time.time() - start
-    pitch_gyro += Gy*ts
-    roll_gyro += Gx*ts
-    yaw += Gz*ts
-    # complementary filter values
-    pitch_comp = pitch_gyro*0.98 + pitch_acc*0.02
-    roll_comp = roll_gyro*0.98 + roll_acc*0.02
-    serial_print('%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f \r\n' % (
-        roll_acc, pitch_acc, roll_gyro, pitch_gyro, roll_comp, pitch_comp, yaw))
-    # this is for ensuring as constant ts as possible
-    if elapsed < ts:
-        time.sleep(ts - elapsed)
+    ax, ay, az = tuple(mpu.readAccelerometerMaster())
+    gx, gy, gz = tuple(mpu.readGyroscopeMaster())
+    mx, my, mz = tuple(mpu.readMagnetometerMaster())
+    serial_print("%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f\n" %
+                 (ax, ay, az, gx, gy, gz, mx, my, mz))
