@@ -7,12 +7,13 @@ from pygame.locals import *
 import serial
 import re
 import math
+import time
 
 ser = serial.Serial('/dev/ttyUSB0', 115200, timeout=1)
 
 ax, ay, az, mx, my, mz, gx, gy, gz = (0, 0, 0, 0, 0, 0, 0, 0, 0)
 
-time_start, time_now, ts = (0, 0, 0.008)
+time_prev, time_now, ts = (0, 0, 0.008)
 
 
 class Angles:
@@ -25,6 +26,7 @@ acc_angle = Angles()
 gyro_angle = Angles()
 comp_filter_angles = Angles()
 yaw = 0
+
 
 def resize(width, height):
     if height == 0:
@@ -118,6 +120,9 @@ def draw_imu_legend(x_offset, roll, pitch, yaw, data_name):
 
 
 def draw():
+    global time_now, time_prev
+    time_now = time.time()
+    ts = time_now - time_prev
     global rquad, yaw
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
 
@@ -137,9 +142,12 @@ def draw():
     gyro_draw_offset = 0
     comp_draw_offset = 6
 
-    draw_imu_legend(acc_draw_offset - 0.5, acc_angle.roll, acc_angle.pitch, yaw, 'Acc data')
-    draw_imu_legend(gyro_draw_offset - 1, gyro_angle.roll, gyro_angle.pitch, yaw, 'Gyro data')
-    draw_imu_legend(comp_draw_offset - 2, comp_filter_angles.roll, comp_filter_angles.pitch, yaw, 'Mag data')
+    draw_imu_legend(acc_draw_offset - 0.5, acc_angle.roll,
+                    acc_angle.pitch, yaw, 'Acc data')
+    draw_imu_legend(gyro_draw_offset - 1, gyro_angle.roll,
+                    gyro_angle.pitch, yaw, 'Gyro data')
+    draw_imu_legend(comp_draw_offset - 2, comp_filter_angles.roll,
+                    comp_filter_angles.pitch, yaw, 'Mag data')
 
     glTranslatef(acc_draw_offset, 0.0, 0.0)
 
@@ -152,7 +160,7 @@ def draw():
     glTranslatef(comp_draw_offset, 0.0, 0.0)
 
     draw_and_rotate(comp_filter_angles.roll, comp_filter_angles.pitch, yaw)
-
+    time_prev = time_now
 
 def read_data():
     global ax, ay, az, mx, my, mz, gx, gy, gz
